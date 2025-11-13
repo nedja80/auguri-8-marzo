@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -345,6 +345,33 @@
             box-shadow: 0 0 10px white;
         }
 
+        .audio-notice {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 30px 40px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            color: #ff1493;
+            z-index: 10000;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .audio-notice:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+            background: rgba(255,255,255,1);
+        }
+
+        .audio-notice.hidden {
+            display: none;
+        }
+
         .tap-hint {
             position: absolute;
             bottom: 5%;
@@ -371,21 +398,32 @@
             50% { transform: translateX(-50%) scale(1.08); opacity: 1; }
             100% { transform: translateX(-50%) scale(1); opacity: 0.4; }
         }
+
+        .audio-status {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            z-index: 10000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
-    <!-- Audio Elements -->
-    <audio id="heartbeat" loop>
-        <source src="https://assets.mixkit.co/sfx/preview/mixkit-heart-beat-quick-2859.mp3" type="audio/mpeg">
-    </audio>
-    
-    <audio id="catGrowl">
-        <source src="https://assets.mixkit.co/sfx/preview/mixkit-angry-cartoon-kitty-meow-94.mp3" type="audio/mpeg">
-    </audio>
-    
-    <audio id="bgMusic" loop>
-        <source src="https://assets.mixkit.co/music/preview/mixkit-piano-reflections-668.mp3" type="audio/mpeg">
-    </audio>
+    <!-- Audio Notice -->
+    <div id="audioNotice" class="audio-notice">
+        🔊 Clicca qui per attivare l'audio 🎵
+    </div>
+
+    <!-- Status -->
+    <div id="audioStatus" class="audio-status" style="display: none;">
+        🔊 Audio attivo!
+    </div>
 
     <div id="click-area">
         <div class="main-wrapper">
@@ -428,33 +466,124 @@
         const clickArea = document.getElementById("click-area");
         const catContainer = document.getElementById("catContainer");
         const bigHeart = document.querySelector(".big-heart");
+        const audioNotice = document.getElementById("audioNotice");
+        const audioStatus = document.getElementById("audioStatus");
         
-        // Audio elements
-        const heartbeat = document.getElementById("heartbeat");
-        const catGrowl = document.getElementById("catGrowl");
-        const bgMusic = document.getElementById("bgMusic");
-        
+        let audioContext;
+        let heartbeatInterval;
+        let musicInterval;
         let audioInitialized = false;
 
-        // Initialize audio on first interaction
-        function initAudio() {
-            if (!audioInitialized) {
-                audioInitialized = true;
-                
-                // Set volumes
-                heartbeat.volume = 0.4;
-                catGrowl.volume = 0.6;
-                bgMusic.volume = 0.25;
-                
-                // Start background music and heartbeat
-                bgMusic.play().catch(e => console.log('BG music will start on interaction'));
-                heartbeat.play().catch(e => console.log('Heartbeat will start on interaction'));
+        // Crea Audio Context
+        function createAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
+            return audioContext;
         }
 
-        // Add click listeners to initialize audio
-        document.addEventListener('click', initAudio, { once: true });
-        document.addEventListener('touchstart', initAudio, { once: true });
+        // Suono battito del cuore (sintetizzato)
+        function playHeartbeat() {
+            const ctx = createAudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = 80;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.1);
+        }
+
+        // Suono gatto GRRR (sintetizzato)
+        function playCatGrowl() {
+            const ctx = createAudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(100, ctx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000;
+            
+            gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.3);
+        }
+
+        // Nota musicale di sottofondo
+        function playMusicNote(frequency, duration) {
+            const ctx = createAudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + duration);
+        }
+
+        // Melodia di sottofondo
+        const musicNotes = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00];
+        let noteIndex = 0;
+
+        function startBackgroundMusic() {
+            if (musicInterval) return;
+            musicInterval = setInterval(() => {
+                playMusicNote(musicNotes[noteIndex], 0.5);
+                noteIndex = (noteIndex + 1) % musicNotes.length;
+            }, 800);
+        }
+
+        function startHeartbeat() {
+            if (heartbeatInterval) return;
+            heartbeatInterval = setInterval(() => {
+                playHeartbeat();
+                setTimeout(playHeartbeat, 150);
+            }, 1000);
+        }
+
+        // Inizializza audio
+        async function initAudio() {
+            if (audioInitialized) return;
+            audioInitialized = true;
+            
+            audioNotice.classList.add('hidden');
+            audioStatus.style.display = 'block';
+            
+            createAudioContext();
+            startHeartbeat();
+            startBackgroundMusic();
+            
+            setTimeout(() => {
+                audioStatus.style.display = 'none';
+            }, 3000);
+        }
+
+        // Audio notice click
+        audioNotice.addEventListener('click', initAudio);
 
         // Mostra Z quando la pagina si carica
         catContainer.classList.add('active');
@@ -467,14 +596,12 @@
             sparkle.style.top = Math.random() * window.innerHeight + "px";
             document.body.appendChild(sparkle);
 
-            const duration = 1000 + Math.random() * 2000;
-            
             sparkle.animate([
                 { opacity: 0, transform: 'scale(0)' },
                 { opacity: 1, transform: 'scale(1)', offset: 0.5 },
                 { opacity: 0, transform: 'scale(0)' }
             ], {
-                duration: duration,
+                duration: 1000 + Math.random() * 2000,
                 easing: 'ease-in-out'
             }).onfinish = () => sparkle.remove();
         }
@@ -482,15 +609,19 @@
         setInterval(createSparkle, 300);
 
         // Click area principale
-        clickArea.addEventListener("click", function(event) {
+        clickArea.addEventListener("click", async function(event) {
+            if (event.target === audioNotice) return;
             if (event.target.closest('.cat-container') || event.target.closest('.big-heart')) return;
+            await initAudio();
             launchBall(event.clientX, event.clientY);
         });
 
-        clickArea.addEventListener("touchstart", function(event) {
+        clickArea.addEventListener("touchstart", async function(event) {
+            if (event.target === audioNotice) return;
             if (event.target.closest('.cat-container') || event.target.closest('.big-heart')) return;
             event.preventDefault();
             const touch = event.touches[0];
+            await initAudio();
             launchBall(touch.clientX, touch.clientY);
         });
 
@@ -501,8 +632,8 @@
             handleHeartInteraction();
         });
 
-        function handleHeartInteraction() {
-            initAudio();
+        async function handleHeartInteraction() {
+            await initAudio();
             
             const rect = bigHeart.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
@@ -530,24 +661,21 @@
         });
 
         let catActive = false;
-        function handleCatInteraction() {
+        async function handleCatInteraction() {
             if (catActive) return;
             catActive = true;
             
-            initAudio();
+            await initAudio();
 
             const rect = catContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
 
-            // Rimuovi le Z
             catContainer.classList.remove('active');
             
-            // Play cat growl sound
-            catGrowl.currentTime = 0;
-            catGrowl.play().catch(e => console.log('Cat sound error'));
+            // Play cat GRRR
+            playCatGrowl();
 
-            // Animazione gatto
             catContainer.animate([
                 { transform: 'scale(1) rotate(0deg)' },
                 { transform: 'scale(1.05) rotate(-5deg)' },
@@ -570,8 +698,6 @@
         }
 
         function launchBall(endX, endY) {
-            initAudio();
-            
             const ball = document.createElement("div");
             ball.classList.add("ball");
             document.body.appendChild(ball);
