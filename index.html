@@ -49,38 +49,53 @@
             padding: 0 1rem;
         }
 
+        /* wrapper con logo verde + gattino sotto */
         .cat-wrapper {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: 18px;
         }
-
-        #cat {
-            width: min(180px, 40vw);
-            max-width: 220px;
-            border-radius: 40%;
-            box-shadow:
-                0 0 10px rgba(255,255,255,0.9),
-                0 0 30px rgba(255,155,200,0.9);
-            cursor: pointer;
-            transition: transform 0.2s ease-out;
-        }
-
-        #cat:active { transform: scale(1.05); }
 
         .cat-halo {
             position: absolute;
-            width: 130%;
-            height: 130%;
+            width: 160%;
+            height: 160%;
             border-radius: 50%;
             background: radial-gradient(circle, rgba(255,255,255,0.7), rgba(255,255,255,0));
             filter: blur(2px);
             pointer-events: none;
         }
+
+        /* icona verde (tipo WhatsApp) */
+        .main-icon {
+            width: min(190px, 50vw);
+            max-width: 220px;
+            border-radius: 50%;
+            box-shadow:
+                0 0 15px rgba(255,255,255,0.9),
+                0 0 40px rgba(255,155,200,1);
+        }
+
+        /* gattino sotto */
+        #cat {
+            width: min(120px, 30vw);
+            max-width: 140px;
+            border-radius: 35%;
+            box-shadow:
+                0 0 10px rgba(255,255,255,0.9),
+                0 0 25px rgba(255,155,200,0.9);
+            cursor: pointer;
+            transition: transform 0.2s ease-out;
+            background: rgba(255,255,255,0.8);
+        }
+
+        #cat:active { transform: scale(1.05); }
 
         .ball {
             position: absolute;
@@ -151,6 +166,24 @@
             50%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
             100% { transform: translateX(-50%) scale(1);   opacity: 0.4; }
         }
+
+        /* pulsante download in basso al centro */
+        .download-btn {
+            position: absolute;
+            bottom: 11%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: none;
+            background: #ff7ac4;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 0 12px rgba(255,255,255,0.9);
+            cursor: pointer;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -160,10 +193,13 @@
            src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_3e1f6c0ce4.mp3?filename=magic-flash-6104.mp3"
            preload="auto"></audio>
 
+    <!-- suono prprprpr del gatto -->
     <audio id="purrSound"
            src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_7f410e9d46.mp3?filename=cat-purr-6106.mp3"
-           preload="auto"></audio>
+           preload="auto"
+           loop></audio>
 
+    <!-- musica di sottofondo morbida -->
     <audio id="bgMusic"
            src="https://cdn.pixabay.com/download/audio/2021/10/26/audio_0c0fb1921f.mp3?filename=soft-ambient-110241.mp3"
            preload="auto"
@@ -175,10 +211,22 @@
 
         <div class="cat-wrapper">
             <div class="cat-halo"></div>
+
+            <!-- icona verde -->
+            <img class="main-icon"
+                 src="https://cdn-icons-png.flaticon.com/512/733/733585.png"
+                 alt="Icona verde">
+
+            <!-- gattino sotto -->
             <img id="cat"
                  src="https://cdn-icons-png.flaticon.com/512/220/220236.png"
                  alt="Gattino dolce">
         </div>
+
+        <!-- pulsante download -->
+        <button id="downloadBtn" class="download-btn">
+            📥 Scarica questa sorpresa
+        </button>
 
         <div class="tap-hint">
             <span class="tap-icon">👆</span>
@@ -187,14 +235,15 @@
     </div>
 
     <script>
-        const clickArea = document.getElementById("click-area");
-        const cat = document.getElementById("cat");
+        const clickArea  = document.getElementById("click-area");
+        const cat        = document.getElementById("cat");
         const clickSound = document.getElementById("clickSound");
-        const purrSound = document.getElementById("purrSound");
-        const bgMusic = document.getElementById("bgMusic");
+        const purrSound  = document.getElementById("purrSound");
+        const bgMusic    = document.getElementById("bgMusic");
+        const downloadBtn = document.getElementById("downloadBtn");
 
         clickSound.volume = 0.4;
-        purrSound.volume  = 0.5;
+        purrSound.volume  = 0.6;
         bgMusic.volume    = 0.25;
 
         function ensureMusic() {
@@ -203,12 +252,14 @@
             }
         }
 
+        // Click / tap sullo schermo (ma non sul gattino)
         clickArea.addEventListener("click", function (event) {
-            if (event.target === cat) return;
+            if (event.target === cat || event.target === downloadBtn) return;
             ensureMusic();
             launchBall(event.clientX, event.clientY);
         });
 
+        // Click sul gattino = fusa + esplosione dolce
         cat.addEventListener("click", function (event) {
             event.stopPropagation();
             ensureMusic();
@@ -224,12 +275,26 @@
                 easing: "easeInOutQuad"
             });
 
-            if (!purrSound.paused) purrSound.currentTime = 0;
-            purrSound.play();
+            // avvia purr continuo
+            if (purrSound.paused) {
+                purrSound.currentTime = 0;
+                purrSound.play();
+            }
 
             explosionAt(centerX, centerY);
             flowersAt(centerX, centerY);
             showMessage(centerX, centerY, "Un sorriso per te 😺🌸");
+        });
+
+        // pulsante download: scarica una copia della pagina
+        downloadBtn.addEventListener("click", function (event) {
+            event.stopPropagation(); // non far partire le animazioni
+            const link = document.createElement('a');
+            link.href = 'index.html';              // file corrente
+            link.download = 'auguri-speciali.html'; // nome del file scaricato
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
 
         function launchBall(endX, endY) {
